@@ -1,0 +1,2359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="게임 이름">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>냉장고 파먹기 & 마이 셰프</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Jua (귀여운 타이틀용) & Noto Sans KR (깔끔한 본문용) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'sans-serif'],
+            display: ['"Jua"', 'sans-serif'],
+          },
+          colors: {
+            cream: '#FFFDF9',
+            warmbg: '#FDF6EC',
+            apricot: {
+              50: '#FFF7ED',
+              100: '#FFEDD5',
+              200: '#FED7AA',
+              400: '#FB923C',
+              500: '#F97316',
+              600: '#EA580C',
+            },
+            cocoa: '#2D241E',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* 기본 배경 및 타이포그래피 */
+    body {
+      background-color: #FDF6EC;
+      background-image: radial-gradient(#FDE68A 0.75px, transparent 0.75px), radial-gradient(#FED7AA 0.75px, #FDF6EC 0.75px);
+      background-size: 32px 32px;
+      background-position: 0 0, 16px 16px;
+      color: #2D241E;
+      font-family: 'Noto Sans KR', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .font-title {
+      font-family: 'Jua', sans-serif;
+    }
+
+    /* 캐릭터 숨쉬기/둥실둥실 애니메이션 */
+    @keyframes floatChef {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+    .animate-chef {
+      animation: floatChef 3.2s ease-in-out infinite;
+    }
+
+    /* 반짝임 애니메이션 */
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.35; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+    .animate-twinkle {
+      animation: twinkle 2s ease-in-out infinite;
+    }
+
+    /* 포인트 획득 팝업 펄스 */
+    @keyframes popScale {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.16); }
+      100% { transform: scale(1); }
+    }
+    .animate-pop {
+      animation: popScale 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* 부드러운 탭 전환 페이드 */
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .tab-panel {
+      animation: fadeSlideUp 0.25s ease-out;
+    }
+
+    /* 커스텀 스크롤바 (가로 칩 영역 등) */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* 입체감 있는 게임형 버튼 효과 */
+    .btn-game {
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease;
+    }
+    .btn-game:active {
+      transform: translateY(2px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- 축하 컨페티 캔버스 (클릭 방해 없음) -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toast-container" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 w-full max-w-sm px-4 pointer-events-none"></div>
+
+  <!-- 상단 고정 헤더 -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-amber-200/80 shadow-sm">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <!-- 앱 타이틀 & 랭크 배지 -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-xl shadow-sm shrink-0">
+          🧊
+        </div>
+        <div class="min-w-0">
+          <h1 class="font-title text-lg sm:text-xl text-cocoa leading-tight truncate">
+            냉장고 파먹기 &amp; 마이 셰프
+          </h1>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span id="header-rank-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              Lv.1 초보 자취생
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 실시간 보유 포인트 카운터 -->
+      <button
+        type="button"
+        onclick="switchTab('character')"
+        title="캐릭터 상점으로 이동"
+        class="btn-game shrink-0 flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white px-3.5 py-2 rounded-2xl shadow-md shadow-orange-200/70 border border-amber-300"
+      >
+        <span class="text-base">💰</span>
+        <div class="text-left leading-none">
+          <span class="block text-[10px] font-semibold text-amber-50 opacity-95">보유 포인트</span>
+          <span id="header-points" class="font-title text-base sm:text-lg tracking-wide">0 P</span>
+        </div>
+      </button>
+    </div>
+
+    <!-- 3개 메인 내비게이션 탭 -->
+    <nav class="max-w-3xl mx-auto px-4 pb-2.5 pt-1">
+      <div class="grid grid-cols-3 gap-2 bg-amber-100/80 p-1.5 rounded-2xl border border-amber-200/70">
+        <button
+          id="nav-ingredients"
+          type="button"
+          onclick="switchTab('ingredients')"
+          class="tab-btn flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold text-sm sm:text-base transition-all bg-white text-orange-600 shadow-sm"
+        >
+          <span>🥬</span>
+          <span>등록재료</span>
+          <span id="badge-ing-count" class="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-extrabold">0</span>
+        </button>
+
+        <button
+          id="nav-recipes"
+          type="button"
+          onclick="switchTab('recipes')"
+          class="tab-btn flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold text-sm sm:text-base transition-all text-stone-600 hover:text-cocoa"
+        >
+          <span>🍳</span>
+          <span>레시피 추천</span>
+          <span id="badge-rec-count" class="text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold">0</span>
+        </button>
+
+        <button
+          id="nav-character"
+          type="button"
+          onclick="switchTab('character')"
+          class="tab-btn flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-bold text-sm sm:text-base transition-all text-stone-600 hover:text-cocoa"
+        >
+          <span>🧑‍🍳</span>
+          <span>캐릭터</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- 메인 콘텐츠 컨테이너 -->
+  <main class="flex-1 max-w-3xl w-full mx-auto px-4 py-5 pb-16">
+
+    <!-- ========================================================= -->
+    <!-- TAB 1: 등록재료 (유통기한 임박 알림 + 재료 등록 + 자동 정렬) -->
+    <!-- ========================================================= -->
+    <section id="tab-ingredients" class="tab-panel space-y-5">
+
+      <!-- 유통기한 임박 재료 순서 하이라이트 카드 -->
+      <div class="bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 rounded-3xl p-4 sm:p-5 border-2 border-rose-200/80 shadow-sm">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🚨</span>
+            <h2 class="font-title text-lg sm:text-xl text-rose-900">유통기한 임박 재료 순서</h2>
+          </div>
+          <button
+            type="button"
+            onclick="switchTab('recipes')"
+            class="text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-xl shadow-sm transition"
+          >
+            임박 재료 요리하기 →
+          </button>
+        </div>
+        <p class="text-xs text-rose-700/90 mb-3">
+          유통기한이 가장 가까운 순서대로 정렬됩니다. 3일 이내 임박 재료를 요리하면 <strong class="font-bold text-rose-800">+50P 구출 보너스</strong>를 드려요!
+        </p>
+        <div id="urgent-list-container" class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+          <!-- JS로 임박 재료 카드 렌더링 -->
+        </div>
+      </div>
+
+      <!-- 새 식재료 등록 폼 카드 -->
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-amber-200/80 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-title text-lg sm:text-xl text-cocoa flex items-center gap-2">
+            <span>🧺</span>
+            <span>냉장고 재료 등록하기</span>
+          </h2>
+          <button
+            type="button"
+            onclick="promptResetSampleIngredients()"
+            class="text-xs font-semibold text-stone-500 hover:text-orange-600 bg-stone-100 hover:bg-orange-50 px-2.5 py-1.5 rounded-xl transition"
+          >
+            🔄 샘플 재료 불러오기
+          </button>
+        </div>
+
+        <!-- 빠른 입력 칩 (자주 쓰는 재료) -->
+        <div class="mb-4">
+          <span class="block text-xs font-bold text-stone-500 mb-2">⚡ 자주 쓰는 재료 빠른 선택 (탭하면 자동 입력!)</span>
+          <div id="quick-chips" class="flex flex-wrap gap-1.5">
+            <!-- JS로 칩 버튼 생성 -->
+          </div>
+        </div>
+
+        <!-- 입력 폼 -->
+        <form id="ingredient-form" onsubmit="handleAddIngredient(event)" class="space-y-3.5">
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <!-- 재료명 -->
+            <div class="sm:col-span-5">
+              <label for="ing-name" class="block text-xs font-bold text-stone-600 mb-1">음식 / 재료명</label>
+              <input
+                id="ing-name"
+                type="text"
+                required
+                maxlength="20"
+                placeholder="예: 계란, 대파, 김치..."
+                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm font-medium"
+              />
+            </div>
+
+            <!-- 카테고리 -->
+            <div class="sm:col-span-3">
+              <label for="ing-category" class="block text-xs font-bold text-stone-600 mb-1">분류</label>
+              <select
+                id="ing-category"
+                class="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm font-medium"
+              >
+                <option value="채소/과일">🥬 채소/과일</option>
+                <option value="육류/계란">🥩 육류/계란</option>
+                <option value="유제품/가공">🧀 유제품/가공</option>
+                <option value="해산물">🐟 해산물</option>
+                <option value="양념/기타">🧂 양념/기타</option>
+              </select>
+            </div>
+
+            <!-- 유통기한 -->
+            <div class="sm:col-span-4">
+              <div class="flex items-center justify-between mb-1">
+                <label for="ing-expiry" class="block text-xs font-bold text-stone-600">유통기한</label>
+                <div class="flex gap-1">
+                  <button type="button" onclick="setExpiryOffset(0)" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 hover:bg-rose-200">오늘</button>
+                  <button type="button" onclick="setExpiryOffset(3)" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 hover:bg-amber-200">+3일</button>
+                  <button type="button" onclick="setExpiryOffset(7)" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 hover:bg-emerald-200">+7일</button>
+                </div>
+              </div>
+              <input
+                id="ing-expiry"
+                type="date"
+                required
+                class="w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-stone-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm font-medium"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="btn-game w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm sm:text-base shadow-md shadow-orange-200 flex items-center justify-center gap-2"
+          >
+            <span>➕</span>
+            <span>냉장고에 재료 넣기</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- 등록된 전체 재료 목록 (유통기한 오름차순 자동 정렬) -->
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-amber-200/80 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="font-title text-lg sm:text-xl text-cocoa flex items-center gap-2">
+              <span>❄️</span>
+              <span>내 냉장고 식재료 목록</span>
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">유통기한 임박순으로 자동 정렬되어 표시됩니다.</p>
+          </div>
+          <span id="total-ing-label" class="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800">
+            총 0개
+          </span>
+        </div>
+
+        <div id="ingredient-list" class="space-y-2.5">
+          <!-- JS로 정렬된 식재료 목록 렌더링 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- TAB 2: 레시피 추천 (맞춤 레시피 매칭 & 요리 포인트 적립)  -->
+    <!-- ========================================================= -->
+    <section id="tab-recipes" class="tab-panel hidden space-y-5">
+
+      <!-- 상단 배너 & 필터 -->
+      <div class="bg-white rounded-3xl p-4 sm:p-5 border border-amber-200/80 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="font-title text-lg sm:text-xl text-cocoa flex items-center gap-2">
+              <span>👩‍🍳</span>
+              <span>냉장고 맞춤 레시피 추천</span>
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              보유 재료를 활용해 요리하면 <strong class="text-orange-600">포인트</strong>가 적립됩니다!
+            </p>
+          </div>
+          <div class="text-xs bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 text-amber-900 font-medium">
+            기본 <strong>100P</strong> + 재료당 <strong>30P</strong> + 임박구출 <strong>50P</strong>
+          </div>
+        </div>
+
+        <!-- 필터 알약 버튼 -->
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            data-filter="recommended"
+            onclick="setRecipeFilter('recommended')"
+            class="recipe-filter-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-orange-500 text-white shadow-sm transition"
+          >
+            ✨ 추천순
+          </button>
+          <button
+            type="button"
+            data-filter="urgent"
+            onclick="setRecipeFilter('urgent')"
+            class="recipe-filter-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-600 hover:bg-amber-50 transition"
+          >
+            🔥 임박재료 활용
+          </button>
+          <button
+            type="button"
+            data-filter="match2"
+            onclick="setRecipeFilter('match2')"
+            class="recipe-filter-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-600 hover:bg-amber-50 transition"
+          >
+            ✅ 재료 2개 이상 일치
+          </button>
+        </div>
+      </div>
+
+      <!-- 레시피 카드 그리드 -->
+      <div id="recipe-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- JS로 레시피 카드 렌더링 -->
+      </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- TAB 3: 캐릭터 (포인트 상점 & SVG 셰프 아바타 커스터마이징) -->
+    <!-- ========================================================= -->
+    <section id="tab-character" class="tab-panel hidden space-y-5">
+
+      <!-- 캐릭터 프리뷰 스테이지 & 레벨 카드 -->
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-amber-200/80 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+          <!-- SVG 캐릭터 캔버스 영역 -->
+          <div class="md:col-span-6 flex flex-col items-center">
+            <div class="relative w-full max-w-[280px] aspect-square rounded-3xl overflow-hidden border-4 border-amber-200 shadow-inner bg-amber-50">
+              <div id="character-svg-stage" class="w-full h-full">
+                <!-- JS로 5단 레이어 SVG 캐릭터 렌더링 -->
+              </div>
+              <div class="absolute bottom-2.5 right-2.5 bg-white/90 backdrop-blur px-2.5 py-1 rounded-full text-[11px] font-bold text-cocoa shadow-sm border border-amber-100">
+                ✨ 실시간 미리보기
+              </div>
+            </div>
+          </div>
+
+          <!-- 셰프 프로필, 닉네임 수정, 레벨 진행도 -->
+          <div class="md:col-span-6 space-y-4">
+            <div>
+              <label for="chef-name-input" class="block text-xs font-bold text-stone-500 mb-1">나만의 셰프 닉네임</label>
+              <div class="flex gap-2">
+                <input
+                  id="chef-name-input"
+                  type="text"
+                  maxlength="14"
+                  placeholder="셰프 이름을 입력하세요"
+                  onchange="updateChefName(this.value)"
+                  class="flex-1 px-3.5 py-2 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 font-bold text-cocoa text-sm sm:text-base"
+                />
+                <button
+                  type="button"
+                  onclick="saveChefNameBtn()"
+                  class="btn-game px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm shadow-sm"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+
+            <!-- 셰프 등급 및 경험치(누적 포인트) 바 -->
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200/80">
+              <div class="flex items-center justify-between mb-1.5">
+                <span id="char-rank-title" class="font-title text-base sm:text-lg text-orange-800">
+                  Lv.1 초보 자취생
+                </span>
+                <span id="char-next-rank-text" class="text-xs font-bold text-amber-700">
+                  다음 등급까지 300 P
+                </span>
+              </div>
+              <div class="w-full h-3 bg-white rounded-full overflow-hidden border border-amber-200 p-0.5">
+                <div id="char-level-bar" class="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500" style="width: 20%;"></div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-amber-200/60 text-center">
+                <div>
+                  <span class="block text-[11px] text-stone-500">요리 횟수</span>
+                  <span id="stat-cooked-count" class="font-bold text-sm text-cocoa">0회</span>
+                </div>
+                <div>
+                  <span class="block text-[11px] text-stone-500">누적 포인트</span>
+                  <span id="stat-total-points" class="font-bold text-sm text-orange-600">0 P</span>
+                </div>
+                <div>
+                  <span class="block text-[11px] text-stone-500">수집 아이템</span>
+                  <span id="stat-unlocked-count" class="font-bold text-sm text-emerald-600">5/24</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-xs text-stone-500 leading-relaxed">
+              💡 냉장고 속 재료로 요리를 완성하고 포인트를 모아 귀여운 동물 외형, 셰프 모자, 전설의 대파 검, 냉장고 왕국 배경을 잠금 해제해 보세요!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 카테고리별 의상/아이템 상점 -->
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-amber-200/80 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-title text-lg sm:text-xl text-cocoa flex items-center gap-2">
+            <span>🛍️</span>
+            <span>셰프 꾸미기 옷장 &amp; 상점</span>
+          </h2>
+          <span id="shop-balance-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900">
+            💰 0 P 보유
+          </span>
+        </div>
+
+        <!-- 5개 커스터마이징 카테고리 탭 -->
+        <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-3 mb-4 border-b border-stone-100">
+          <button type="button" data-shopcat="base" onclick="setShopCategory('base')" class="shop-cat-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-orange-500 text-white shadow-sm">
+            🐻 캐릭터 외형
+          </button>
+          <button type="button" data-shopcat="hat" onclick="setShopCategory('hat')" class="shop-cat-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-600 hover:bg-amber-50">
+            👑 모자/헤어
+          </button>
+          <button type="button" data-shopcat="outfit" onclick="setShopCategory('outfit')" class="shop-cat-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-600 hover:bg-amber-50">
+            👕 의상
+          </button>
+          <button type="button" data-shopcat="hand" onclick="setShopCategory('hand')" class="shop-cat-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-600 hover:bg-amber-50">
+            🍳 소품
+          </button>
+          <button type="button" data-shopcat="bg" onclick="setShopCategory('bg')" class="shop-cat-btn shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-stone-100 text-stone-600 hover:bg-amber-50">
+            🏰 배경
+          </button>
+        </div>
+
+        <!-- 아이템 그리드 -->
+        <div id="shop-items-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <!-- JS로 상점 아이템 카드 렌더링 -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- MODAL 1: 요리하기 & 재료 소진 선택 + 포인트 적립 모달     -->
+  <!-- ========================================================= -->
+  <div id="cooking-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-amber-200 p-5 sm:p-6 space-y-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div id="modal-recipe-emoji" class="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-3xl shrink-0">
+            🍳
+          </div>
+          <div>
+            <h3 id="modal-recipe-title" class="font-title text-xl text-cocoa">레시피 이름</h3>
+            <p id="modal-recipe-meta" class="text-xs text-stone-500 mt-0.5">조리시간 15분 · 난이도 초급</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="closeCookingModal()"
+          class="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center font-bold"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- 간단한 조리 순서 -->
+      <div class="bg-amber-50/70 rounded-2xl p-3.5 border border-amber-200/70">
+        <h4 class="text-xs font-extrabold text-amber-900 mb-2">📖 초간단 요리 순서</h4>
+        <ol id="modal-recipe-steps" class="list-decimal list-inside space-y-1.5 text-xs sm:text-sm text-stone-700 leading-relaxed">
+          <!-- JS로 조리 단계 렌더링 -->
+        </ol>
+      </div>
+
+      <!-- 냉장고 재료 소진 체크리스트 -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-xs font-extrabold text-cocoa">🧊 냉장고에서 사용한 재료 체크 (자동 차감)</h4>
+          <span class="text-[11px] text-stone-500">체크 해제 시 냉장고에 유지됩니다</span>
+        </div>
+        <div id="modal-matched-checklist" class="space-y-2">
+          <!-- JS로 매칭된 냉장고 재료 체크박스 렌더링 -->
+        </div>
+      </div>
+
+      <!-- 실시간 포인트 계산기 -->
+      <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-200 space-y-1.5">
+        <div class="flex justify-between text-xs text-stone-600">
+          <span>기본 요리 완성 보상</span>
+          <span class="font-bold text-cocoa">+100 P</span>
+        </div>
+        <div class="flex justify-between text-xs text-stone-600">
+          <span id="modal-calc-ing-label">냉장고 재료 활용 (0개 × 30P)</span>
+          <span id="modal-calc-ing-pts" class="font-bold text-emerald-600">+0 P</span>
+        </div>
+        <div class="flex justify-between text-xs text-stone-600">
+          <span id="modal-calc-urgent-label">🔥 임박재료 구출 보너스 (0개 × 50P)</span>
+          <span id="modal-calc-urgent-pts" class="font-bold text-rose-600">+0 P</span>
+        </div>
+        <div class="pt-2 mt-1 border-t border-orange-200/80 flex items-center justify-between">
+          <span class="font-bold text-sm text-cocoa">총 획득 예정 포인트</span>
+          <span id="modal-calc-total-pts" class="font-title text-xl text-orange-600">+100 P</span>
+        </div>
+      </div>
+
+      <!-- 액션 버튼 -->
+      <div class="flex gap-2.5 pt-1">
+        <button
+          type="button"
+          onclick="closeCookingModal()"
+          class="flex-1 py-3 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm transition"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onclick="confirmCookRecipe()"
+          class="btn-game flex-[2] py-3 px-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm sm:text-base shadow-md shadow-orange-200"
+        >
+          🎉 요리 완료 &amp; 포인트 적립!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL 2: 커스텀 확인 모달 (alert/confirm 대체)            -->
+  <!-- ========================================================= -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl border border-amber-200 p-5 sm:p-6 text-center space-y-4">
+      <div id="confirm-modal-icon" class="w-14 h-14 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center text-3xl">
+        🛍️
+      </div>
+      <div>
+        <h3 id="confirm-modal-title" class="font-title text-xl text-cocoa">확인</h3>
+        <p id="confirm-modal-desc" class="text-sm text-stone-600 mt-1.5 leading-relaxed">내용</p>
+      </div>
+      <div class="flex gap-2.5 pt-1">
+        <button
+          type="button"
+          onclick="closeConfirmModal()"
+          class="flex-1 py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm transition"
+        >
+          취소
+        </button>
+        <button
+          id="confirm-modal-ok-btn"
+          type="button"
+          class="btn-game flex-1 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-sm transition"
+        >
+          확인
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- JAVASCRIPT APPLICATION LOGIC                              -->
+  <!-- ========================================================= -->
+  <script>
+    /*************************************************************************
+     * 1. 상수 및 데이터베이스 정의 (자주 쓰는 재료, 동의어, 22개 레시피, 캐릭터 아이템)
+     *************************************************************************/
+    const STORAGE_KEY = 'fridge_chef_app_v1';
+
+    // 빠른 입력 칩 목록
+    const QUICK_INGREDIENTS = [
+      { name: '계란', category: '육류/계란', emoji: '🥚', days: 5 },
+      { name: '대파', category: '채소/과일', emoji: '🌱', days: 2 },
+      { name: '김치', category: '채소/과일', emoji: '🥬', days: 10 },
+      { name: '두부', category: '유제품/가공', emoji: '⬜', days: 2 },
+      { name: '스팸', category: '유제품/가공', emoji: '🥫', days: 14 },
+      { name: '양파', category: '채소/과일', emoji: '🧅', days: 6 },
+      { name: '우유', category: '유제품/가공', emoji: '🥛', days: 2 },
+      { name: '감자', category: '채소/과일', emoji: '🥔', days: 7 },
+      { name: '참치', category: '해산물', emoji: '🐟', days: 14 },
+      { name: '치즈', category: '유제품/가공', emoji: '🧀', days: 5 },
+      { name: '베이컨', category: '육류/계란', emoji: '🥓', days: 3 },
+      { name: '당근', category: '채소/과일', emoji: '🥕', days: 5 },
+      { name: '애호박', category: '채소/과일', emoji: '🥒', days: 3 },
+      { name: '소세지', category: '육류/계란', emoji: '🌭', days: 4 },
+      { name: '어묵', category: '해산물', emoji: '🍢', days: 2 },
+      { name: '버섯', category: '채소/과일', emoji: '🍄', days: 3 },
+      { name: '식빵', category: '유제품/가공', emoji: '🍞', days: 2 },
+      { name: '콩나물', category: '채소/과일', emoji: '🌱', days: 1 },
+    ];
+
+    // 한국어 식재료 동의어 매핑 그룹 (유연한 레시피 매칭용)
+    const SYNONYM_GROUPS = [
+      ['계란', '달걀', '유정란', '메추리알'],
+      ['대파', '파', '쪽파', '실파'],
+      ['참치', '참치캔', '고추참치'],
+      ['스팸', '햄', '런천미트', '리챔', '통조림햄'],
+      ['소세지', '소시지', '비엔나', '후랑크'],
+      ['두부', '순두부', '연두부', '부침두부', '찌개두부'],
+      ['치즈', '슬라이스치즈', '모짜렐라', '체다치즈', '피자치즈'],
+      ['김치', '배추김치', '묵은지', '신김치'],
+      ['버섯', '팽이버섯', '새송이버섯', '표고버섯', '느타리버섯'],
+      ['식빵', '빵', '모닝빵'],
+      ['우유', '흰우유', '저지방우유'],
+      ['베이컨', '삼겹살', '대패삼겹살'],
+    ];
+
+    // 22가지 인기 한국 집밥 레시피 데이터베이스
+    const RECIPES = [
+      {
+        id: 'kimchi_fried_rice',
+        name: '김치볶음밥',
+        emoji: '🍛',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['김치', '계란', '대파', '스팸'],
+        steps: [
+          '대파를 송송 썰어 식용유에 파기름을 먼저 내줍니다.',
+          '잘게 썬 김치와 스팸을 넣고 설탕 반 스푼과 함께 노릇하게 볶습니다.',
+          '밥을 넣고 간장 1스푼을 팬 가장자리에 둘러 불향을 입힌 뒤 반숙 계란후라이를 올립니다.',
+        ],
+      },
+      {
+        id: 'rolled_omelette',
+        name: '폭신폭신 계란말이',
+        emoji: '🍳',
+        time: '10분',
+        difficulty: '초급',
+        ingredients: ['계란', '대파', '당근'],
+        steps: [
+          '계란 4개를 잘 풀고 소금 한 꼬집, 잘게 다진 대파와 당근을 섞어줍니다.',
+          '약불로 달군 팬에 기름을 얇게 두르고 계란물을 1/3씩 부어가며 돌돌 말아줍니다.',
+          '한 김 식힌 뒤 먹기 좋은 두께로 썰어 케첩과 함께 냅니다.',
+        ],
+      },
+      {
+        id: 'tofu_kimchi',
+        name: '따끈한 두부김치',
+        emoji: '🥘',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['두부', '김치', '대파', '양파'],
+        steps: [
+          '두부는 끓는 물에 2~3분간 데친 뒤 먹기 좋은 크기로 썰어 접시에 둘러 담습니다.',
+          '팬에 기름을 두르고 김치, 채 썬 양파, 고춧가루와 설탕 약간을 넣어 달달 볶습니다.',
+          '마지막에 대파와 참기름을 두르고 두부 중앙에 소복이 담아냅니다.',
+        ],
+      },
+      {
+        id: 'soy_egg_rice',
+        name: '황금비율 간장계란밥',
+        emoji: '🍚',
+        time: '7분',
+        difficulty: '초급',
+        ingredients: ['계란', '대파'],
+        steps: [
+          '송송 썬 대파를 기름에 살짝 볶아 향을 낸 뒤 계란을 반숙으로 굽습니다.',
+          '따뜻한 밥 위에 계란을 올리고 진간장 1.5스푼, 참기름 1스푼, 깨소금을 뿌립니다.',
+          '노른자를 톡 터뜨려 고소하게 비벼 드세요!',
+        ],
+      },
+      {
+        id: 'spam_mayo_bowl',
+        name: '단짠단짠 스팸마요덮밥',
+        emoji: '🍱',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['스팸', '계란', '대파', '양파'],
+        steps: [
+          '스팸은 깍둑썰기하여 노릇하게 굽고, 계란은 스크램블 에그로 만듭니다.',
+          '채 썬 양파에 간장 2스푼, 올리고당 1스푼, 물 3스푼을 넣고 졸여 소스를 만듭니다.',
+          '밥 위에 스크램블, 양파소스, 스팸을 올리고 마요네즈와 대파를 뿌립니다.',
+        ],
+      },
+      {
+        id: 'tuna_kimchi_stew',
+        name: '얼큰 참치김치찌개',
+        emoji: '🍲',
+        time: '20분',
+        difficulty: '초급',
+        ingredients: ['참치', '김치', '두부', '대파', '양파'],
+        steps: [
+          '냄비에 김치와 참치 기름을 넣고 먼저 달달 볶아 깊은 맛을 냅니다.',
+          '물(또는 쌀뜨물) 2컵과 양파, 고춧가루, 다진 마늘을 넣고 10분간 끓입니다.',
+          '참치 살코기와 두부, 대파를 넣고 한소끔 더 끓여 마무리합니다.',
+        ],
+      },
+      {
+        id: 'doenjang_stew',
+        name: '구수한 집밥 된장찌개',
+        emoji: '🥣',
+        time: '20분',
+        difficulty: '중급',
+        ingredients: ['두부', '애호박', '감자', '양파', '대파'],
+        steps: [
+          '감자, 애호박, 양파, 두부를 한입 크기로 깍둑썰기합니다.',
+          '물 2.5컵에 된장 1.5스푼을 풀고 감자와 양파를 먼저 넣어 끓입니다.',
+          '감자가 익으면 애호박, 두부, 다진 마늘, 대파를 넣고 5분간 더 끓입니다.',
+        ],
+      },
+      {
+        id: 'stir_fried_potatoes',
+        name: '포슬포슬 감자채볶음',
+        emoji: '🥔',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['감자', '당근', '양파'],
+        steps: [
+          '감자를 얇게 채 썬 뒤 찬물에 5분간 담가 전분기를 빼고 물기를 닦습니다.',
+          '달군 팬에 기름을 두르고 감자채, 당근채, 양파채를 센 불에서 빠르게 볶습니다.',
+          '소금과 후추로 간을 맞추고 통깨를 솔솔 뿌려 완성합니다.',
+        ],
+      },
+      {
+        id: 'veggie_pancake',
+        name: '바삭바삭 야채부침개',
+        emoji: '🥞',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['애호박', '당근', '양파', '대파', '계란'],
+        steps: [
+          '애호박, 당근, 양파, 대파를 가늘게 채 썰어 볼에 담습니다.',
+          '부침가루(또는 밀가루)와 물, 계란 1개를 넣어 재료가 엉길 정도로만 반죽합니다.',
+          '기름을 넉넉히 두른 팬에 얇게 펴서 앞뒤로 바삭하게 부쳐냅니다.',
+        ],
+      },
+      {
+        id: 'omurice',
+        name: '촉촉 회오리 오므라이스',
+        emoji: '🍽️',
+        time: '20분',
+        difficulty: '중급',
+        ingredients: ['계란', '양파', '당근', '스팸', '치즈'],
+        steps: [
+          '다진 양파, 당근, 스팸을 볶다가 밥과 케첩 2스푼, 굴소스 반 스푼을 넣고 볶습니다.',
+          '볶음밥 가운데 치즈를 쏙 넣고 그릇에 둥글게 담아냅니다.',
+          '계란 3개를 풀어 팬에 부드럽게 익힌 뒤 볶음밥 위에 덮어 케첩을 뿌립니다.',
+        ],
+      },
+      {
+        id: 'french_toast',
+        name: '달콤 촉촉 프렌치토스트',
+        emoji: '🍞',
+        time: '10분',
+        difficulty: '초급',
+        ingredients: ['식빵', '계란', '우유'],
+        steps: [
+          '볼에 계란 2개, 우유 4스푼, 설탕 1스푼, 소금 한 꼬집을 잘 섞습니다.',
+          '식빵을 계란물에 앞뒤로 푹 적셔줍니다.',
+          '약불의 팬에 버터나 식용유를 두르고 노릇노릇하게 구워냅니다.',
+        ],
+      },
+      {
+        id: 'sausage_veggie_stirfry',
+        name: '밥도둑 소세지야채볶음',
+        emoji: '🌭',
+        time: '12분',
+        difficulty: '초급',
+        ingredients: ['소세지', '양파', '당근', '대파'],
+        steps: [
+          '소세지에 칼집을 내고 양파, 당근, 대파는 먹기 좋게 썰어줍니다.',
+          '팬에 재료를 모두 넣고 볶다가 케첩 2스푼, 굴소스 1스푼, 올리고당 1스푼을 넣습니다.',
+          '윤기 나게 볶아낸 뒤 깨소금을 뿌려 완성합니다.',
+        ],
+      },
+      {
+        id: 'fishcake_stirfry',
+        name: '매콤달콤 어묵볶음',
+        emoji: '🍢',
+        time: '12분',
+        difficulty: '초급',
+        ingredients: ['어묵', '양파', '대파', '당근'],
+        steps: [
+          '어묵을 한입 크기로 썰어 뜨거운 물에 살짝 헹궈 기름기를 뺍니다.',
+          '팬에 어묵, 양파, 당근을 볶다가 간장 2스푼, 올리고당 1.5스푼, 물 2스푼을 넣습니다.',
+          '양념이 배어들면 대파와 참기름을 넣고 가볍게 섞어 마무리합니다.',
+        ],
+      },
+      {
+        id: 'sundubu_stew',
+        name: '보글보글 순두부찌개',
+        emoji: '🌶️',
+        time: '15분',
+        difficulty: '중급',
+        ingredients: ['두부', '계란', '대파', '양파', '김치'],
+        steps: [
+          '냄비에 대파와 잘게 썬 김치, 고춧가루를 넣고 고추기름을 냅니다.',
+          '물 1.5컵과 양파, 국간장 1스푼을 넣고 끓이다가 순두부(두부)를 큼직하게 넣습니다.',
+          '마지막에 계란 1개를 톡 깨뜨려 넣고 반숙이 되면 불을 끕니다.',
+        ],
+      },
+      {
+        id: 'steamed_egg',
+        name: '뚝배기 폭탄 계란찜',
+        emoji: '🍮',
+        time: '12분',
+        difficulty: '초급',
+        ingredients: ['계란', '대파', '당근'],
+        steps: [
+          '계란 4개에 물(또는 육수) 1컵, 새우젓이나 소금으로 간을 맞추고 잘 풉니다.',
+          '뚝배기에 계란물을 붓고 중약불에서 저어가며 80% 정도 익힙니다.',
+          '다진 대파와 당근을 올리고 뚜껑을 덮어 약불에서 2분간 뜸을 들입니다.',
+        ],
+      },
+      {
+        id: 'tuna_mayo_riceball',
+        name: '든든한 참치마요 주먹밥',
+        emoji: '🍙',
+        time: '10분',
+        difficulty: '초급',
+        ingredients: ['참치', '김치', '치즈', '대파'],
+        steps: [
+          '기름을 뺀 참치에 마요네즈와 후추를 섞고, 잘게 다진 김치는 살짝 볶아줍니다.',
+          '따뜻한 밥에 참기름과 소금 간을 한 뒤 속에 참치마요와 볶은 김치, 치즈를 넣습니다.',
+          '동글동글하게 뭉쳐 한입에 쏙 먹기 좋은 주먹밥을 만듭니다.',
+        ],
+      },
+      {
+        id: 'milk_cream_pasta',
+        name: '꾸덕꾸덕 우유크림파스타',
+        emoji: '🍝',
+        time: '20분',
+        difficulty: '중급',
+        ingredients: ['우유', '베이컨', '양파', '버섯', '치즈'],
+        steps: [
+          '팬에 베이컨, 채 썬 양파, 버섯, 다진 마늘을 노릇하게 볶습니다.',
+          '우유 250ml와 치즈 1~2장, 소금, 후추를 넣고 약불에서 걸쭉하게 끓입니다.',
+          '삶은 파스타 면(또는 우동면)을 넣고 소스와 잘 어우러지도록 1분간 볶습니다.',
+        ],
+      },
+      {
+        id: 'veggie_bibimbap',
+        name: '영양만점 야채비빔밥',
+        emoji: '🥗',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['계란', '콩나물', '애호박', '당근', '버섯'],
+        steps: [
+          '콩나물은 데쳐서 무치고, 채 썬 애호박·당근·버섯은 소금 간을 해 각각 볶습니다.',
+          '따뜻한 밥 위에 준비한 나물들을 색감 있게 둘러 담습니다.',
+          '반숙 계란후라이와 고추장 1스푼, 참기름을 올려 맛있게 비빕니다.',
+        ],
+      },
+      {
+        id: 'curry_rice',
+        name: '진한 풍미 카레라이스',
+        emoji: '🍛',
+        time: '25분',
+        difficulty: '초급',
+        ingredients: ['감자', '당근', '양파', '소세지'],
+        steps: [
+          '감자, 당근, 양파, 소세지를 한입 크기로 썰어 식용유에 달달 볶습니다.',
+          '재료가 잠길 정도로 물을 붓고 감자가 부드럽게 익을 때까지 끓입니다.',
+          '불을 약하게 줄이고 카레 가루(또는 고형 카레)를 풀어 걸쭉하게 끓입니다.',
+        ],
+      },
+      {
+        id: 'bacon_cheese_rice',
+        name: '고소함 폭발 베이컨치즈볶음밥',
+        emoji: '🥓',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['베이컨', '계란', '대파', '치즈', '양파'],
+        steps: [
+          '베이컨과 다진 양파, 대파를 팬에 넣고 바삭하고 향긋하게 볶습니다.',
+          '밥과 굴소스 1스푼을 넣고 센 불에서 고슬고슬하게 볶아줍니다.',
+          '치즈를 듬뿍 올려 녹인 뒤 계란후라이를 곁들여 완성합니다.',
+        ],
+      },
+      {
+        id: 'bean_sprout_soup',
+        name: '시원한 콩나물국밥',
+        emoji: '🍜',
+        time: '15분',
+        difficulty: '초급',
+        ingredients: ['콩나물', '계란', '대파', '김치'],
+        steps: [
+          '냄비에 물 2.5컵과 깨끗이 씻은 콩나물, 다진 마늘을 넣고 뚜껑을 닫아 5분간 끓입니다.',
+          '국간장과 소금으로 간을 맞추고 잘게 썬 김치와 대파를 넣습니다.',
+          '그릇에 밥을 담고 뜨거운 국물을 부은 뒤 수란(계란)을 곁들입니다.',
+        ],
+      },
+      {
+        id: 'cheese_potato_jeon',
+        name: '겉바속쫀 치즈감자전',
+        emoji: '🧀',
+        time: '20분',
+        difficulty: '중급',
+        ingredients: ['감자', '치즈', '베이컨', '대파'],
+        steps: [
+          '감자를 강판에 갈거나 아주 얇게 채 썬 뒤 소금 약간과 전분 1스푼을 섞습니다.',
+          '팬에 감자 반죽을 얇게 펴서 앞면이 노릇해지면 뒤집어 치즈와 구운 베이컨을 올립니다.',
+          '반으로 접어 치즈가 사르르 녹을 때까지 바삭하게 구워 대파를 올립니다.',
+        ],
+      },
+    ];
+
+    // 캐릭터 커스터마이징 아이템 상점 데이터 (5개 카테고리, 총 24종)
+    const SHOP_ITEMS = [
+      // 1. 캐릭터 외형 (base)
+      { id: 'base_human', category: 'base', name: '기본 셰프', price: 0, icon: '🧑', desc: '열정 가득한 기본 인간 셰프' },
+      { id: 'base_cat', category: 'base', name: '고양이 셰프', price: 200, icon: '🐱', desc: '새침하지만 요리 실력은 최고인 냥셰프' },
+      { id: 'base_bear', category: 'base', name: '곰돌이 셰프', price: 250, icon: '🐻', desc: '푸근하고 든든한 감성 곰돌이 셰프' },
+      { id: 'base_rabbit', category: 'base', name: '토끼 셰프', price: 300, icon: '🐰', desc: '쫑긋한 귀가 매력적인 발랄 토끼 셰프' },
+
+      // 2. 모자/헤어 (hat)
+      { id: 'hat_hair', category: 'hat', name: '기본 헤어', price: 0, icon: '💇', desc: '단정하게 빗어 넘긴 기본 앞머리' },
+      { id: 'hat_sprout', category: 'hat', name: '새싹 핀', price: 100, icon: '🌱', desc: '머리 위에 뿅 자라난 싱그러운 두 잎 새싹' },
+      { id: 'hat_chef', category: 'hat', name: '미니 셰프 모자', price: 150, icon: '👨‍🍳', desc: '요리사의 자부심! 몽글몽글 셰프 모자' },
+      { id: 'hat_catband', category: 'hat', name: '고양이 귀 밴드', price: 250, icon: '🎀', desc: '방울이 달린 귀여운 핑크 고양이 귀 밴드' },
+      { id: 'hat_crown', category: 'hat', name: '황금 왕관', price: 400, icon: '👑', desc: '보석이 박힌 반짝반짝 냉장고 제왕의 왕관' },
+      { id: 'hat_wizard', category: 'hat', name: '마법사 모자', price: 500, icon: '🧙', desc: '별빛이 수놓아진 신비로운 요리 마법사 모자' },
+
+      // 3. 의상 (outfit)
+      { id: 'outfit_apron', category: 'outfit', name: '기본 앞치마', price: 0, icon: '🎽', desc: '깔끔한 흰 티셔츠와 따뜻한 코랄 앞치마' },
+      { id: 'outfit_overalls', category: 'outfit', name: '멜빵바지', price: 180, icon: '👖', desc: '노란 줄무늬 티셔츠에 데님 멜빵바지 코디' },
+      { id: 'outfit_stripe', category: 'outfit', name: '스트라이프 셰프복', price: 220, icon: '👔', desc: '세련된 스트라이프 패턴과 스카프 셰프복' },
+      { id: 'outfit_space', category: 'outfit', name: '우주복', price: 450, icon: '🚀', desc: '무중력 상태에서도 완벽한 요리를 하는 우주복' },
+      { id: 'outfit_michelin', category: 'outfit', name: '미슐랭 로열 수트', price: 600, icon: '🎖️', desc: '황금 견장과 훈장이 빛나는 최고급 수트' },
+
+      // 4. 소품 (hand)
+      { id: 'hand_spatula', category: 'hand', name: '나무 주걱', price: 0, icon: '🥄', desc: '손에 착 감기는 따뜻한 원목 요리 주걱' },
+      { id: 'hand_whisk', category: 'hand', name: '거품기', price: 150, icon: '🥣', desc: '머랭도 순식간에 완성하는 반짝 스테인리스 거품기' },
+      { id: 'hand_greenonion', category: 'hand', name: '대파 검', price: 250, icon: '🗡️', desc: '전설의 냉장고 파먹기 용사만이 쥘 수 있는 대파 검!' },
+      { id: 'hand_goldenpan', category: 'hand', name: '황금 프라이팬', price: 350, icon: '🍳', desc: '계란후라이가 절로 익는 눈부신 순금 프라이팬' },
+      { id: 'hand_trophy', category: 'hand', name: '미슐랭 트로피', price: 700, icon: '🏆', desc: '최고의 냉장고 파먹기 마스터에게 수여되는 황금 트로피' },
+
+      // 5. 배경 (bg)
+      { id: 'bg_kitchen', category: 'bg', name: '아늑한 주방', price: 0, icon: '🏡', desc: '조리도구가 걸려 있는 포근한 파스텔 주방' },
+      { id: 'bg_terrace', category: 'bg', name: '햇살 테라스', price: 200, icon: '☀️', desc: '허브 화분과 따스한 햇살이 가득한 야외 테라스' },
+      { id: 'bg_starlight', category: 'bg', name: '별빛 레스토랑', price: 400, icon: '🌃', desc: '은하수와 조명이 반짝이는 로맨틱 루프탑 레스토랑' },
+      { id: 'bg_fridgekingdom', category: 'bg', name: '냉장고 왕국', price: 550, icon: '🏰', desc: '얼음 성곽과 신선한 식재료가 둥둥 떠다니는 환상의 왕국' },
+    ];
+
+    // 셰프 등급 테이블 (누적 획득 포인트 기준)
+    const CHEF_RANKS = [
+      { level: 1, title: 'Lv.1 초보 자취생', minPts: 0 },
+      { level: 2, title: 'Lv.2 냉장고 탐험가', minPts: 300 },
+      { level: 3, title: 'Lv.3 알뜰 홈쿡', minPts: 800 },
+      { level: 4, title: 'Lv.4 파먹기 장인', minPts: 1600 },
+      { level: 5, title: 'Lv.5 미슐랭 스타 셰프', minPts: 2800 },
+      { level: 6, title: 'Lv.6 전설의 냉장고 제왕', minPts: 4500 },
+    ];
+
+    /*************************************************************************
+     * 2. 애플리케이션 상태(State) 및 LocalStorage 관리
+     *************************************************************************/
+    let appState = {
+      ingredients: [],
+      points: 150, // 첫 방문 시 기본 체험 포인트 150P 제공
+      totalEarnedPoints: 150,
+      cookedCount: 0,
+      chefName: '꼬마 파먹기 셰프',
+      unlockedItems: ['base_human', 'hat_hair', 'outfit_apron', 'hand_spatula', 'bg_kitchen'],
+      equipped: {
+        base: 'base_human',
+        hat: 'hat_hair',
+        outfit: 'outfit_apron',
+        hand: 'hand_spatula',
+        bg: 'bg_kitchen',
+      },
+    };
+
+    let currentTab = 'ingredients';
+    let currentRecipeFilter = 'recommended';
+    let currentShopCategory = 'base';
+    let activeCookingRecipe = null; // 현재 모달에 열린 레시피 분석 객체
+    let displayedPoints = 0; // 상단 헤더 포인트 애니메이션용
+    let confirmCallback = null;
+
+    // 로컬 시간 기준 오늘 날짜 문자열 (YYYY-MM-DD) 반환
+    function getDateOffsetStr(daysOffset = 0) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + daysOffset);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    // YYYY-MM-DD 문자열을 로컬 자정 Date 객체로 파싱
+    function parseLocalDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setHours(0, 0, 0, 0);
+      return dt;
+    }
+
+    // D-Day 계산 (음수: 기한만료, 0: 오늘까지, 양수: 남은 일수)
+    function getDaysUntilExpiry(expiryDateStr) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const exp = parseLocalDate(expiryDateStr);
+      return Math.round((exp - today) / (1000 * 60 * 60 * 24));
+    }
+
+    // 첫 방문 시 기본 샘플 재료 5종 생성
+    function createStarterIngredients() {
+      return [
+        { id: 'init_1', name: '대파', category: '채소/과일', expiryDate: getDateOffsetStr(0) },
+        { id: 'init_2', name: '두부', category: '유제품/가공', expiryDate: getDateOffsetStr(1) },
+        { id: 'init_3', name: '계란', category: '육류/계란', expiryDate: getDateOffsetStr(2) },
+        { id: 'init_4', name: '김치', category: '채소/과일', expiryDate: getDateOffsetStr(4) },
+        { id: 'init_5', name: '스팸', category: '유제품/가공', expiryDate: getDateOffsetStr(9) },
+      ];
+    }
+
+    // LocalStorage에서 상태 불러오기
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          appState = {
+            ...appState,
+            ...parsed,
+            equipped: {
+              ...appState.equipped,
+              ...(parsed.equipped || {}),
+            },
+          };
+        } else {
+          // 최초 방문 초기화
+          appState.ingredients = createStarterIngredients();
+          saveState();
+        }
+      } catch (e) {
+        console.error('상태 불러오기 오류:', e);
+        appState.ingredients = createStarterIngredients();
+      }
+      displayedPoints = appState.points;
+    }
+
+    // LocalStorage에 상태 저장하기
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.error('상태 저장 오류:', e);
+      }
+    }
+
+    /*************************************************************************
+     * 3. UI 알림(Toast), 커스텀 모달(Confirm), 포인트 애니메이션 & 컨페티
+     *************************************************************************/
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgMap = {
+        success: 'bg-emerald-600 text-white border-emerald-400',
+        reward: 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-amber-300',
+        warn: 'bg-rose-600 text-white border-rose-400',
+        info: 'bg-cocoa text-white border-stone-600',
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-bold flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 ${bgMap[type] || bgMap.info}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('-translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 2800);
+    }
+
+    function openConfirmModal({ icon = '🔔', title, desc, okText = '확인', onConfirm }) {
+      document.getElementById('confirm-modal-icon').textContent = icon;
+      document.getElementById('confirm-modal-title').textContent = title;
+      document.getElementById('confirm-modal-desc').textContent = desc;
+      const okBtn = document.getElementById('confirm-modal-ok-btn');
+      okBtn.textContent = okText;
+      confirmCallback = onConfirm;
+
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConfirmModal() {
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      confirmCallback = null;
+    }
+
+    document.getElementById('confirm-modal-ok-btn').addEventListener('click', () => {
+      if (typeof confirmCallback === 'function') {
+        confirmCallback();
+      }
+      closeConfirmModal();
+    });
+
+    // 상단 포인트 숫자 부드러운 카운트업 애니메이션
+    function updateHeaderPoints(animate = true) {
+      const el = document.getElementById('header-points');
+      const target = appState.points;
+
+      if (!animate || displayedPoints === target) {
+        displayedPoints = target;
+        el.textContent = `${target.toLocaleString()} P`;
+        return;
+      }
+
+      const start = displayedPoints;
+      const diff = target - start;
+      const duration = 500;
+      const startTime = performance.now();
+
+      el.parentElement.parentElement.classList.remove('animate-pop');
+      void el.offsetWidth;
+      el.parentElement.parentElement.classList.add('animate-pop');
+
+      function step(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(start + diff * eased);
+        el.textContent = `${current.toLocaleString()} P`;
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          displayedPoints = target;
+          el.textContent = `${target.toLocaleString()} P`;
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // 현재 셰프 랭크 계산
+    function getCurrentChefRank() {
+      const total = appState.totalEarnedPoints;
+      let current = CHEF_RANKS[0];
+      let next = null;
+      for (let i = 0; i < CHEF_RANKS.length; i++) {
+        if (total >= CHEF_RANKS[i].minPts) {
+          current = CHEF_RANKS[i];
+          next = CHEF_RANKS[i + 1] || null;
+        }
+      }
+      return { current, next };
+    }
+
+    // 축하 컨페티 효과
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const colors = ['#F97316', '#FBBF24', '#10B981', '#F43F5E', '#3B82F6', '#A855F7'];
+      const particles = Array.from({ length: 75 }, () => ({
+        x: canvas.width * (0.2 + Math.random() * 0.6),
+        y: canvas.height * 0.45,
+        vx: (Math.random() - 0.5) * 14,
+        vy: -Math.random() * 13 - 4,
+        size: Math.random() * 7 + 5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * 360,
+        vrot: (Math.random() - 0.5) * 12,
+      }));
+
+      let frame = 0;
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.38; // 중력
+          p.rot += p.vrot;
+          if (p.y < canvas.height + 30) active = true;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rot * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+          ctx.restore();
+        });
+
+        frame++;
+        if (active && frame < 140) {
+          requestAnimationFrame(draw);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+
+    /*************************************************************************
+     * 4. 탭 전환 및 전체 UI 동기화
+     *************************************************************************/
+    function switchTab(tabName) {
+      currentTab = tabName;
+      const tabs = ['ingredients', 'recipes', 'character'];
+      tabs.forEach((t) => {
+        const panel = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`nav-${t}`);
+        if (t === tabName) {
+          panel.classList.remove('hidden');
+          btn.classList.add('bg-white', 'text-orange-600', 'shadow-sm');
+          btn.classList.remove('text-stone-600');
+        } else {
+          panel.classList.add('hidden');
+          btn.classList.remove('bg-white', 'text-orange-600', 'shadow-sm');
+          btn.classList.add('text-stone-600');
+        }
+      });
+
+      if (tabName === 'ingredients') renderIngredientsTab();
+      if (tabName === 'recipes') renderRecipesTab();
+      if (tabName === 'character') renderCharacterTab();
+    }
+
+    function refreshAllUI(animatePts = false) {
+      updateHeaderPoints(animatePts);
+      const { current } = getCurrentChefRank();
+      document.getElementById('header-rank-badge').textContent = current.title;
+      document.getElementById('badge-ing-count').textContent = appState.ingredients.length;
+
+      const matchedRecipesCount = analyzeAllRecipes().filter((r) => r.matchedCount > 0).length;
+      document.getElementById('badge-rec-count').textContent = matchedRecipesCount;
+
+      if (currentTab === 'ingredients') renderIngredientsTab();
+      if (currentTab === 'recipes') renderRecipesTab();
+      if (currentTab === 'character') renderCharacterTab();
+    }
+
+    /*************************************************************************
+     * 5. TAB 1: 등록재료 로직 (유통기한 오름차순 자동 정렬 & 임박 알림)
+     *************************************************************************/
+    function initQuickChips() {
+      const container = document.getElementById('quick-chips');
+      container.innerHTML = QUICK_INGREDIENTS.map(
+        (item) => `
+          <button
+            type="button"
+            onclick="fillQuickIngredient('${item.name}', '${item.category}', ${item.days})"
+            class="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-orange-100 border border-amber-200/80 text-xs font-bold text-cocoa transition flex items-center gap-1"
+          >
+            <span>${item.emoji}</span>
+            <span>${item.name}</span>
+          </button>
+        `
+      ).join('');
+    }
+
+    function fillQuickIngredient(name, category, daysOffset) {
+      document.getElementById('ing-name').value = name;
+      document.getElementById('ing-category').value = category;
+      document.getElementById('ing-expiry').value = getDateOffsetStr(daysOffset);
+      document.getElementById('ing-name').focus();
+    }
+
+    function setExpiryOffset(days) {
+      document.getElementById('ing-expiry').value = getDateOffsetStr(days);
+    }
+
+    function handleAddIngredient(e) {
+      e.preventDefault();
+      const nameInput = document.getElementById('ing-name');
+      const catInput = document.getElementById('ing-category');
+      const expInput = document.getElementById('ing-expiry');
+
+      const name = nameInput.value.trim();
+      const category = catInput.value;
+      const expiryDate = expInput.value;
+
+      if (!name || !expiryDate) return;
+
+      const newItem = {
+        id: 'ing_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name,
+        category,
+        expiryDate,
+      };
+
+      appState.ingredients.push(newItem);
+      saveState();
+
+      nameInput.value = '';
+      expInput.value = getDateOffsetStr(3);
+      showToast(`🥬 '${name}' 재료가 냉장고에 등록되었습니다!`, 'success');
+      refreshAllUI(false);
+    }
+
+    function deleteIngredient(id) {
+      const target = appState.ingredients.find((i) => i.id === id);
+      appState.ingredients = appState.ingredients.filter((i) => i.id !== id);
+      saveState();
+      if (target) {
+        showToast(`🗑️ '${target.name}' 재료를 목록에서 삭제했습니다.`, 'info');
+      }
+      refreshAllUI(false);
+    }
+
+    function promptResetSampleIngredients() {
+      openConfirmModal({
+        icon: '🧊',
+        title: '샘플 재료로 초기화할까요?',
+        desc: '현재 냉장고 목록을 테스트용 샘플 식재료 5종(대파, 두부, 계란, 김치, 스팸)으로 재설정합니다.',
+        okText: '샘플 불러오기',
+        onConfirm: () => {
+          appState.ingredients = createStarterIngredients();
+          saveState();
+          refreshAllUI(false);
+          showToast('🔄 샘플 식재료 5종을 불러왔습니다!', 'success');
+        },
+      });
+    }
+
+    // D-Day 배지 스타일 및 텍스트 헬퍼
+    function getExpiryBadgeInfo(days) {
+      if (days < 0) {
+        return {
+          label: `기한만료 D+${Math.abs(days)}`,
+          badgeClass: 'bg-rose-600 text-white border-rose-700',
+          cardBorder: 'border-rose-300 bg-rose-50/40',
+          urgent: true,
+        };
+      }
+      if (days === 0) {
+        return {
+          label: '오늘까지 D-Day',
+          badgeClass: 'bg-rose-500 text-white border-rose-600',
+          cardBorder: 'border-rose-300 bg-rose-50/40',
+          urgent: true,
+        };
+      }
+      if (days <= 2) {
+        return {
+          label: `D-${days}`,
+          badgeClass: 'bg-rose-100 text-rose-700 border-rose-300',
+          cardBorder: 'border-rose-200 bg-rose-50/20',
+          urgent: true,
+        };
+      }
+      if (days <= 5) {
+        return {
+          label: `D-${days}`,
+          badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+          cardBorder: 'border-amber-200 bg-white',
+          urgent: days <= 3,
+        };
+      }
+      return {
+        label: `D-${days}`,
+        badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+        cardBorder: 'border-stone-200 bg-white',
+        urgent: false,
+      };
+    }
+
+    function getCategoryEmoji(category) {
+      const map = {
+        '채소/과일': '🥬',
+        '육류/계란': '🥩',
+        '유제품/가공': '🧀',
+        '해산물': '🐟',
+        '양념/기타': '🧂',
+      };
+      return map[category] || '🥗';
+    }
+
+    // 유통기한 오름차순 정렬된 재료 배열 반환
+    function getSortedIngredients() {
+      return [...appState.ingredients].sort((a, b) => {
+        const diff = getDaysUntilExpiry(a.expiryDate) - getDaysUntilExpiry(b.expiryDate);
+        if (diff !== 0) return diff;
+        return a.name.localeCompare(b.name, 'ko');
+      });
+    }
+
+    function renderIngredientsTab() {
+      const sorted = getSortedIngredients();
+      document.getElementById('total-ing-label').textContent = `총 ${sorted.length}개`;
+
+      // 1) 상단 임박 재료 순서 카드 렌더링 (가장 임박한 순서대로 최대 6개 표시)
+      const urgentContainer = document.getElementById('urgent-list-container');
+      if (sorted.length === 0) {
+        urgentContainer.innerHTML = `
+          <div class="w-full py-3 px-4 rounded-2xl bg-white/80 text-xs text-stone-500 text-center">
+            냉장고가 비어 있습니다. 아래에서 식재료를 등록해 보세요!
+          </div>
+        `;
+      } else {
+        urgentContainer.innerHTML = sorted
+          .slice(0, 6)
+          .map((item, idx) => {
+            const days = getDaysUntilExpiry(item.expiryDate);
+            const info = getExpiryBadgeInfo(days);
+            return `
+              <div class="shrink-0 bg-white rounded-2xl px-3.5 py-2.5 border ${days <= 2 ? 'border-rose-300' : 'border-amber-200'} shadow-xs flex items-center gap-2.5 min-w-[140px]">
+                <span class="w-6 h-6 rounded-full ${idx === 0 ? 'bg-rose-500 text-white' : 'bg-amber-100 text-amber-800'} text-xs font-extrabold flex items-center justify-center shrink-0">
+                  ${idx + 1}
+                </span>
+                <div>
+                  <div class="font-bold text-sm text-cocoa leading-tight">${item.name}</div>
+                  <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${info.badgeClass}">
+                    ${info.label}
+                  </span>
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+      }
+
+      // 2) 전체 등록 재료 목록 렌더링
+      const listContainer = document.getElementById('ingredient-list');
+      if (sorted.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center py-10 px-4 bg-stone-50 rounded-2xl border border-dashed border-stone-300">
+            <div class="text-4xl mb-2">🧊</div>
+            <p class="font-bold text-stone-600 text-sm">등록된 식재료가 아직 없어요!</p>
+            <p class="text-xs text-stone-400 mt-1">위 입력창에서 냉장고 재료를 추가하거나 샘플 재료를 불러와 보세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = sorted
+        .map((item, index) => {
+          const days = getDaysUntilExpiry(item.expiryDate);
+          const info = getExpiryBadgeInfo(days);
+          const formattedDate = item.expiryDate.replace(/-/g, '.');
+
+          return `
+            <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl border ${info.cardBorder} transition hover:shadow-xs">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl shrink-0">
+                  ${getCategoryEmoji(item.category)}
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-bold text-sm sm:text-base text-cocoa truncate">${item.name}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${info.badgeClass}">
+                      ${info.label}
+                    </span>
+                    ${index === 0 ? '<span class="text-[10px] font-extrabold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">1순위 소비</span>' : ''}
+                  </div>
+                  <div class="text-xs text-stone-500 mt-0.5 flex items-center gap-2">
+                    <span>${item.category}</span>
+                    <span>•</span>
+                    <span>유통기한: ${formattedDate}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onclick="deleteIngredient('${item.id}')"
+                title="재료 삭제"
+                class="shrink-0 w-9 h-9 rounded-xl bg-stone-100 hover:bg-rose-100 text-stone-500 hover:text-rose-600 flex items-center justify-center transition"
+              >
+                🗑️
+              </button>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    /*************************************************************************
+     * 6. TAB 2: 레시피 추천 & 동의어 매칭 & 요리 포인트 보상 로직
+     *************************************************************************/
+    // 두 식재료 이름이 동일하거나 동의어 그룹에 속하는지 판별
+    function isSameIngredient(fridgeName, recipeReqName) {
+      const a = fridgeName.replace(/\s+/g, '').toLowerCase();
+      const b = recipeReqName.replace(/\s+/g, '').toLowerCase();
+      if (a === b || a.includes(b) || b.includes(a)) return true;
+
+      for (const group of SYNONYM_GROUPS) {
+        const hasA = group.some((word) => a.includes(word) || word.includes(a));
+        const hasB = group.some((word) => b.includes(word) || word.includes(b));
+        if (hasA && hasB) return true;
+      }
+      return false;
+    }
+
+    // 모든 레시피에 대해 현재 냉장고 재료 매칭 및 예상 포인트 분석
+    function analyzeAllRecipes() {
+      const sortedFridge = getSortedIngredients(); // 임박한 재료 우선 매칭되도록 정렬된 리스트 사용
+
+      return RECIPES.map((recipe) => {
+        const matchedDetails = []; // { reqName, fridgeItem, daysLeft, isUrgent }
+        const missingNames = [];
+        const usedFridgeIds = new Set();
+
+        recipe.ingredients.forEach((reqName) => {
+          const found = sortedFridge.find(
+            (fItem) => !usedFridgeIds.has(fItem.id) && isSameIngredient(fItem.name, reqName)
+          );
+          if (found) {
+            usedFridgeIds.add(found.id);
+            const daysLeft = getDaysUntilExpiry(found.expiryDate);
+            matchedDetails.push({
+              reqName,
+              fridgeItem: found,
+              daysLeft,
+              isUrgent: daysLeft <= 3,
+            });
+          } else {
+            missingNames.push(reqName);
+          }
+        });
+
+        const matchedCount = matchedDetails.length;
+        const totalReq = recipe.ingredients.length;
+        const matchPercent = Math.round((matchedCount / totalReq) * 100);
+        const urgentCount = matchedDetails.filter((m) => m.isUrgent).length;
+        const expectedPoints = 100 + matchedCount * 30 + urgentCount * 50;
+
+        return {
+          ...recipe,
+          matchedDetails,
+          missingNames,
+          matchedCount,
+          matchPercent,
+          urgentCount,
+          expectedPoints,
+        };
+      });
+    }
+
+    function setRecipeFilter(filterKey) {
+      currentRecipeFilter = filterKey;
+      document.querySelectorAll('.recipe-filter-btn').forEach((btn) => {
+        if (btn.dataset.filter === filterKey) {
+          btn.classList.add('bg-orange-500', 'text-white', 'shadow-sm');
+          btn.classList.remove('bg-stone-100', 'text-stone-600');
+        } else {
+          btn.classList.remove('bg-orange-500', 'text-white', 'shadow-sm');
+          btn.classList.add('bg-stone-100', 'text-stone-600');
+        }
+      });
+      renderRecipesTab();
+    }
+
+    function renderRecipesTab() {
+      let analyzed = analyzeAllRecipes();
+
+      // 정렬: 1) 임박 구출 재료 수 내림차순 -> 2) 일치율 내림차순 -> 3) 매칭 재료 수 내림차순
+      analyzed.sort((a, b) => {
+        if (b.urgentCount !== a.urgentCount) return b.urgentCount - a.urgentCount;
+        if (b.matchPercent !== a.matchPercent) return b.matchPercent - a.matchPercent;
+        return b.matchedCount - a.matchedCount;
+      });
+
+      // 필터 적용
+      if (currentRecipeFilter === 'urgent') {
+        analyzed = analyzed.filter((r) => r.urgentCount > 0);
+      } else if (currentRecipeFilter === 'match2') {
+        analyzed = analyzed.filter((r) => r.matchedCount >= 2);
+      }
+
+      const container = document.getElementById('recipe-list');
+      if (analyzed.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12 px-4 bg-white rounded-3xl border border-amber-200">
+            <div class="text-4xl mb-2">🔍</div>
+            <p class="font-bold text-cocoa text-base">조건에 맞는 추천 레시피가 없어요!</p>
+            <p class="text-xs text-stone-500 mt-1">다른 필터를 선택하거나 '등록재료' 탭에서 식재료를 더 추가해 보세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = analyzed
+        .map((rec) => {
+          const hasUrgent = rec.urgentCount > 0;
+          const barColor =
+            rec.matchPercent >= 75
+              ? 'bg-emerald-500'
+              : rec.matchPercent >= 40
+              ? 'bg-amber-400'
+              : 'bg-stone-300';
+
+          // 보유 재료 배지 (초록색)
+          const matchedBadges = rec.matchedDetails
+            .map((m) => {
+              const dLabel = m.daysLeft < 0 ? `D+${Math.abs(m.daysLeft)}` : m.daysLeft === 0 ? 'D-Day' : `D-${m.daysLeft}`;
+              return `
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  <span>✅ ${m.fridgeItem.name}</span>
+                  <span class="text-[10px] ${m.isUrgent ? 'text-rose-600 font-extrabold' : 'text-emerald-700'}">(${dLabel})</span>
+                </span>
+              `;
+            })
+            .join('');
+
+          // 부족한 재료 배지 (회색)
+          const missingBadges = rec.missingNames
+            .map(
+              (name) => `
+                <span class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-stone-100 text-stone-500 border border-stone-200">
+                  + ${name}
+                </span>
+              `
+            )
+            .join('');
+
+          return `
+            <article class="bg-white rounded-3xl p-4 sm:p-5 border ${hasUrgent ? 'border-orange-300 shadow-md shadow-orange-100/60' : 'border-amber-200/80 shadow-sm'} flex flex-col justify-between gap-4">
+              <div class="space-y-3">
+                <!-- 상단 임박 보너스 배지 & 일치율 -->
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  ${
+                    hasUrgent
+                      ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-xs">
+                          🔥 임박재료 구출 보너스 (+${rec.urgentCount * 50}P)
+                        </span>`
+                      : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-stone-100 text-stone-600">
+                          ⏱️ ${rec.time} · ${rec.difficulty}
+                        </span>`
+                  }
+                  <span class="text-xs font-extrabold ${rec.matchPercent >= 60 ? 'text-emerald-600' : 'text-amber-700'}">
+                    일치율 ${rec.matchPercent}% (${rec.matchedCount}/${rec.ingredients.length})
+                  </span>
+                </div>
+
+                <!-- 레시피 타이틀 -->
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/70 flex items-center justify-center text-3xl shrink-0">
+                    ${rec.emoji}
+                  </div>
+                  <div>
+                    <h3 class="font-title text-lg sm:text-xl text-cocoa leading-tight">${rec.name}</h3>
+                    <p class="text-xs text-stone-500 mt-0.5">조리시간 ${rec.time} · 난이도 ${rec.difficulty}</p>
+                  </div>
+                </div>
+
+                <!-- 일치율 진행 바 -->
+                <div class="w-full h-2 bg-stone-100 rounded-full overflow-hidden">
+                  <div class="h-full ${barColor} rounded-full transition-all duration-300" style="width: ${rec.matchPercent}%;"></div>
+                </div>
+
+                <!-- 재료 배지 목록 -->
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  ${matchedBadges}
+                  ${missingBadges}
+                </div>
+              </div>
+
+              <!-- 하단 요리하기 버튼 -->
+              <button
+                type="button"
+                onclick="openCookingModal('${rec.id}')"
+                class="btn-game w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm shadow-sm flex items-center justify-center gap-2"
+              >
+                <span>🍳 요리하기 (포인트 적립)</span>
+                <span class="px-2 py-0.5 rounded-full bg-white/20 text-xs font-extrabold">+${rec.expectedPoints} P</span>
+              </button>
+            </article>
+          `;
+        })
+        .join('');
+    }
+
+    // 요리 모달 열기
+    function openCookingModal(recipeId) {
+      const analyzed = analyzeAllRecipes().find((r) => r.id === recipeId);
+      if (!analyzed) return;
+      activeCookingRecipe = analyzed;
+
+      document.getElementById('modal-recipe-emoji').textContent = analyzed.emoji;
+      document.getElementById('modal-recipe-title').textContent = analyzed.name;
+      document.getElementById('modal-recipe-meta').textContent = `조리시간 ${analyzed.time} · 난이도 ${analyzed.difficulty}`;
+
+      // 조리 순서 채우기
+      document.getElementById('modal-recipe-steps').innerHTML = analyzed.steps
+        .map((step) => `<li>${step}</li>`)
+        .join('');
+
+      // 매칭된 냉장고 재료 체크박스 렌더링
+      const checklistEl = document.getElementById('modal-matched-checklist');
+      if (analyzed.matchedDetails.length === 0) {
+        checklistEl.innerHTML = `
+          <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-500 text-center">
+            현재 냉장고에 등록된 일치 재료가 없습니다. (기본 요리 완성 보상 100 P 적립 가능)
+          </div>
+        `;
+      } else {
+        checklistEl.innerHTML = analyzed.matchedDetails
+          .map((m) => {
+            const dLabel = m.daysLeft < 0 ? `D+${Math.abs(m.daysLeft)}` : m.daysLeft === 0 ? 'D-Day' : `D-${m.daysLeft}`;
+            return `
+              <label class="flex items-center justify-between p-3 rounded-xl border ${m.isUrgent ? 'border-rose-200 bg-rose-50/40' : 'border-emerald-200 bg-emerald-50/40'} cursor-pointer">
+                <div class="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked
+                    value="${m.fridgeItem.id}"
+                    data-urgent="${m.isUrgent ? '1' : '0'}"
+                    onchange="recalcCookingPoints()"
+                    class="cook-ing-checkbox w-4 h-4 accent-orange-500 rounded"
+                  />
+                  <span class="font-bold text-sm text-cocoa">${m.fridgeItem.name}</span>
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${m.isUrgent ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                    ${dLabel}
+                  </span>
+                </div>
+                <span class="text-xs font-extrabold ${m.isUrgent ? 'text-rose-600' : 'text-emerald-600'}">
+                  +${m.isUrgent ? '80' : '30'} P
+                </span>
+              </label>
+            `;
+          })
+          .join('');
+      }
+
+      recalcCookingPoints();
+      const modal = document.getElementById('cooking-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeCookingModal() {
+      const modal = document.getElementById('cooking-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      activeCookingRecipe = null;
+    }
+
+    // 모달 내 체크박스 선택에 따라 실시간 획득 포인트 계산
+    function recalcCookingPoints() {
+      const checkboxes = Array.from(document.querySelectorAll('.cook-ing-checkbox:checked'));
+      const usedCount = checkboxes.length;
+      const urgentCount = checkboxes.filter((cb) => cb.dataset.urgent === '1').length;
+
+      const ingPts = usedCount * 30;
+      const urgentPts = urgentCount * 50;
+      const totalPts = 100 + ingPts + urgentPts;
+
+      document.getElementById('modal-calc-ing-label').textContent = `냉장고 재료 활용 (${usedCount}개 × 30P)`;
+      document.getElementById('modal-calc-ing-pts').textContent = `+${ingPts} P`;
+      document.getElementById('modal-calc-urgent-label').textContent = `🔥 임박재료 구출 보너스 (${urgentCount}개 × 50P)`;
+      document.getElementById('modal-calc-urgent-pts').textContent = `+${urgentPts} P`;
+      document.getElementById('modal-calc-total-pts').textContent = `+${totalPts} P`;
+
+      return {
+        usedIds: checkboxes.map((cb) => cb.value),
+        totalPts,
+      };
+    }
+
+    // 요리 확정 및 포인트 지급 + 사용한 식재료 냉장고에서 제거
+    function confirmCookRecipe() {
+      if (!activeCookingRecipe) return;
+      const recipeName = activeCookingRecipe.name;
+      const { usedIds, totalPts } = recalcCookingPoints();
+
+      const prevRank = getCurrentChefRank().current.level;
+
+      // 체크된 재료 냉장고에서 삭제
+      if (usedIds.length > 0) {
+        const idSet = new Set(usedIds);
+        appState.ingredients = appState.ingredients.filter((item) => !idSet.has(item.id));
+      }
+
+      // 포인트 및 요리 횟수 누적
+      appState.points += totalPts;
+      appState.totalEarnedPoints += totalPts;
+      appState.cookedCount += 1;
+      saveState();
+
+      closeCookingModal();
+      launchConfetti();
+      refreshAllUI(true);
+
+      const newRank = getCurrentChefRank().current;
+      if (newRank.level > prevRank) {
+        showToast(`🎊 등급 상승! '${newRank.title}' 달성! (+${totalPts} P)`, 'reward');
+      } else {
+        showToast(`🍳 '${recipeName}' 완성! +${totalPts} P 적립되었습니다!`, 'reward');
+      }
+    }
+
+    /*************************************************************************
+     * 7. TAB 3: 캐릭터 커스터마이징 상점 & 다층 SVG 아바타 렌더러
+     *************************************************************************/
+    function updateChefName(val) {
+      const cleaned = val.trim();
+      if (!cleaned) return;
+      appState.chefName = cleaned;
+      saveState();
+    }
+
+    function saveChefNameBtn() {
+      const input = document.getElementById('chef-name-input');
+      const cleaned = input.value.trim();
+      if (!cleaned) {
+        showToast('닉네임을 1글자 이상 입력해 주세요!', 'warn');
+        return;
+      }
+      appState.chefName = cleaned;
+      saveState();
+      showToast(`🧑‍🍳 셰프 이름이 '${cleaned}'(으)로 저장되었습니다!`, 'success');
+    }
+
+    function setShopCategory(cat) {
+      currentShopCategory = cat;
+      document.querySelectorAll('.shop-cat-btn').forEach((btn) => {
+        if (btn.dataset.shopcat === cat) {
+          btn.classList.add('bg-orange-500', 'text-white', 'shadow-sm');
+          btn.classList.remove('bg-stone-100', 'text-stone-600');
+        } else {
+          btn.classList.remove('bg-orange-500', 'text-white', 'shadow-sm');
+          btn.classList.add('bg-stone-100', 'text-stone-600');
+        }
+      });
+      renderShopGrid();
+    }
+
+    function handleSelectShopItem(itemId) {
+      const item = SHOP_ITEMS.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const isUnlocked = appState.unlockedItems.includes(item.id);
+      if (isUnlocked) {
+        // 이미 보유중이면 즉시 장착
+        appState.equipped[item.category] = item.id;
+        saveState();
+        renderCharacterTab();
+        showToast(`✨ '${item.name}' 아이템을 장착했습니다!`, 'success');
+        return;
+      }
+
+      // 미보유 아이템 구매 로직
+      if (appState.points < item.price) {
+        showToast(`💰 포인트가 부족해요! (필요: ${item.price} P / 보유: ${appState.points} P)`, 'warn');
+        return;
+      }
+
+      openConfirmModal({
+        icon: item.icon,
+        title: `'${item.name}' 구매할까요?`,
+        desc: `${item.price} P를 사용하여 구매하고 바로 캐릭터에 착용합니다. (잔여 예정: ${appState.points - item.price} P)`,
+        okText: `${item.price} P로 구매`,
+        onConfirm: () => {
+          appState.points -= item.price;
+          appState.unlockedItems.push(item.id);
+          appState.equipped[item.category] = item.id;
+          saveState();
+          launchConfetti();
+          refreshAllUI(true);
+          showToast(`🎉 '${item.name}' 구매 및 장착 완료!`, 'reward');
+        },
+      });
+    }
+
+    function renderCharacterTab() {
+      // 닉네임 및 통계 반영
+      const nameInput = document.getElementById('chef-name-input');
+      if (document.activeElement !== nameInput) {
+        nameInput.value = appState.chefName;
+      }
+
+      const { current, next } = getCurrentChefRank();
+      document.getElementById('char-rank-title').textContent = current.title;
+
+      if (next) {
+        const remain = next.minPts - appState.totalEarnedPoints;
+        const span = next.minPts - current.minPts;
+        const pct = Math.min(100, Math.max(5, Math.round(((appState.totalEarnedPoints - current.minPts) / span) * 100)));
+        document.getElementById('char-next-rank-text').textContent = `다음 등급까지 ${remain} P`;
+        document.getElementById('char-level-bar').style.width = `${pct}%`;
+      } else {
+        document.getElementById('char-next-rank-text').textContent = '최고 등급 달성!';
+        document.getElementById('char-level-bar').style.width = '100%';
+      }
+
+      document.getElementById('stat-cooked-count').textContent = `${appState.cookedCount}회`;
+      document.getElementById('stat-total-points').textContent = `${appState.totalEarnedPoints.toLocaleString()} P`;
+      document.getElementById('stat-unlocked-count').textContent = `${appState.unlockedItems.length}/${SHOP_ITEMS.length}`;
+      document.getElementById('shop-balance-badge').textContent = `💰 ${appState.points.toLocaleString()} P 보유`;
+
+      // SVG 캐릭터 렌더링
+      renderCharacterSVG();
+
+      // 상점 그리드 렌더링
+      renderShopGrid();
+    }
+
+    function renderShopGrid() {
+      const items = SHOP_ITEMS.filter((i) => i.category === currentShopCategory);
+      const grid = document.getElementById('shop-items-grid');
+
+      grid.innerHTML = items
+        .map((item) => {
+          const isUnlocked = appState.unlockedItems.includes(item.id);
+          const isEquipped = appState.equipped[item.category] === item.id;
+          const canAfford = appState.points >= item.price;
+
+          let statusBadge = '';
+          let cardStyle = 'border-stone-200 bg-stone-50/50 hover:border-orange-300';
+
+          if (isEquipped) {
+            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-orange-500 text-white">장착중</span>`;
+            cardStyle = 'border-orange-400 bg-orange-50/70 ring-2 ring-orange-200';
+          } else if (isUnlocked) {
+            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">보유중</span>`;
+            cardStyle = 'border-emerald-200 bg-white hover:border-emerald-400';
+          } else {
+            statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${canAfford ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-500'}">💰 ${item.price} P</span>`;
+          }
+
+          return `
+            <button
+              type="button"
+              onclick="handleSelectShopItem('${item.id}')"
+              class="btn-game text-left p-3.5 rounded-2xl border ${cardStyle} flex flex-col justify-between gap-2 transition"
+            >
+              <div class="flex items-start justify-between gap-1">
+                <span class="text-2xl sm:text-3xl">${item.icon}</span>
+                ${statusBadge}
+              </div>
+              <div>
+                <div class="font-bold text-sm text-cocoa">${item.name}</div>
+                <p class="text-[11px] text-stone-500 line-clamp-2 mt-0.5 leading-snug">${item.desc}</p>
+              </div>
+            </button>
+          `;
+        })
+        .join('');
+    }
+
+    // 5개 레이어(배경 -> 캐릭터 외형 -> 의상 -> 모자/헤어 -> 손 소품) 커스텀 SVG 생성기
+    function renderCharacterSVG() {
+      const { base, hat, outfit, hand, bg } = appState.equipped;
+      const stage = document.getElementById('character-svg-stage');
+
+      // 1. 배경 레이어
+      let bgLayer = '';
+      if (bg === 'bg_kitchen') {
+        bgLayer = `
+          <rect width="320" height="320" fill="#FFF7ED" />
+          <rect x="0" y="235" width="320" height="85" fill="#FED7AA" />
+          <line x1="0" y1="235" x2="320" y2="235" stroke="#FDBA74" stroke-width="3" />
+          <!-- 주방 선반 & 조리도구 -->
+          <rect x="28" y="65" width="90" height="8" rx="4" fill="#D97706" />
+          <rect x="42" y="42" width="16" height="23" rx="3" fill="#34D399" />
+          <rect x="64" y="46" width="14" height="19" rx="3" fill="#F87171" />
+          <rect x="84" y="40" width="16" height="25" rx="3" fill="#60A5FA" />
+          <rect x="205" y="75" width="85" height="7" rx="3.5" fill="#D97706" />
+          <circle cx="225" cy="96" r="10" fill="none" stroke="#9CA3AF" stroke-width="3" />
+          <line x1="225" y1="82" x2="225" y2="86" stroke="#9CA3AF" stroke-width="3" />
+          <circle cx="255" cy="98" r="12" fill="#FBBF24" opacity="0.8" />
+        `;
+      } else if (bg === 'bg_terrace') {
+        bgLayer = `
+          <defs>
+            <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#BAE6FD" />
+              <stop offset="100%" stop-color="#FEF9C3" />
+            </linearGradient>
+          </defs>
+          <rect width="320" height="320" fill="url(#skyGrad)" />
+          <circle cx="265" cy="52" r="26" fill="#FDE047" />
+          <circle cx="65" cy="58" r="18" fill="#FFFFFF" opacity="0.85" />
+          <circle cx="85" cy="54" r="22" fill="#FFFFFF" opacity="0.85" />
+          <circle cx="105" cy="60" r="16" fill="#FFFFFF" opacity="0.85" />
+          <rect x="0" y="232" width="320" height="88" fill="#BBF7D0" />
+          <!-- 화분 -->
+          <polygon points="36,210 64,210 58,236 42,236" fill="#EA580C" />
+          <circle cx="50" cy="198" r="14" fill="#22C55E" />
+          <circle cx="42" cy="204" r="9" fill="#4ADE80" />
+          <circle cx="58" cy="204" r="9" fill="#16A34A" />
+        `;
+      } else if (bg === 'bg_starlight') {
+        bgLayer = `
+          <defs>
+            <linearGradient id="nightGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1E1B4B" />
+              <stop offset="100%" stop-color="#4C1D95" />
+            </linearGradient>
+          </defs>
+          <rect width="320" height="320" fill="url(#nightGrad)" />
+          <circle cx="52" cy="48" r="2.5" fill="#FDE047" class="animate-twinkle" />
+          <circle cx="110" cy="34" r="2" fill="#FFFFFF" />
+          <circle cx="215" cy="42" r="3" fill="#FDE047" class="animate-twinkle" />
+          <circle cx="272" cy="70" r="2.5" fill="#FDE047" />
+          <circle cx="40" cy="115" r="2" fill="#DDD6FE" />
+          <path d="M262 32 A16 16 0 1 0 282 52 A13 13 0 1 1 262 32 Z" fill="#FEF08A" />
+          <!-- 전구 줄 -->
+          <path d="M0 78 Q160 112 320 78" fill="none" stroke="#FBBF24" stroke-width="2" />
+          <circle cx="55" cy="90" r="5" fill="#FDE047" />
+          <circle cx="160" cy="95" r="5" fill="#FDE047" />
+          <circle cx="265" cy="90" r="5" fill="#FDE047" />
+          <rect x="0" y="236" width="320" height="84" fill="#312E81" />
+        `;
+      } else if (bg === 'bg_fridgekingdom') {
+        bgLayer = `
+          <defs>
+            <linearGradient id="iceGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#CFFAFE" />
+              <stop offset="65%" stop-color="#E0E7FF" />
+              <stop offset="100%" stop-color="#FCE7F3" />
+            </linearGradient>
+          </defs>
+          <rect width="320" height="320" fill="url(#iceGrad)" />
+          <!-- 냉장고 왕국 성곽 실루엣 -->
+          <rect x="28" y="105" width="46" height="135" rx="8" fill="#FFFFFF" opacity="0.85" />
+          <polygon points="24,105 51,72 78,105" fill="#60A5FA" />
+          <rect x="246" y="95" width="48" height="145" rx="8" fill="#FFFFFF" opacity="0.85" />
+          <polygon points="242,95 270,60 298,95" fill="#F472B6" />
+          <!-- 떠다니는 음식 왕국 별빛 -->
+          <text x="42" y="54" font-size="18">🥕</text>
+          <text x="256" y="48" font-size="18">🧀</text>
+          <circle cx="160" cy="46" r="3" fill="#38BDF8" class="animate-twinkle" />
+          <rect x="0" y="236" width="320" height="84" fill="#A5F3FC" />
+        `;
+      }
+
+      // 2. 캐릭터 외형(얼굴/귀/꼬리) 레이어
+      let skinColor = '#FFE4C4';
+      let earBackLayer = '';
+      let faceDetailLayer = '';
+
+      if (base === 'base_cat') {
+        skinColor = '#FFFBEB';
+        earBackLayer = `
+          <!-- 고양이 꼬리 & 귀 -->
+          <path d="M205 235 Q248 215 242 180" fill="none" stroke="#F59E0B" stroke-width="11" stroke-linecap="round" />
+          <polygon points="106,118 116,74 146,102" fill="#FFFBEB" stroke="#F59E0B" stroke-width="3" />
+          <polygon points="113,111 119,84 138,102" fill="#FBCFE8" />
+          <polygon points="214,118 204,74 174,102" fill="#FFFBEB" stroke="#F59E0B" stroke-width="3" />
+          <polygon points="207,111 201,84 182,102" fill="#FBCFE8" />
+        `;
+        faceDetailLayer = `
+          <!-- 고양이 수염 & 코 -->
+          <line x1="104" y1="152" x2="124" y2="150" stroke="#92400E" stroke-width="2" stroke-linecap="round" />
+          <line x1="104" y1="160" x2="124" y2="157" stroke="#92400E" stroke-width="2" stroke-linecap="round" />
+          <line x1="216" y1="152" x2="196" y2="150" stroke="#92400E" stroke-width="2" stroke-linecap="round" />
+          <line x1="216" y1="160" x2="196" y2="157" stroke="#92400E" stroke-width="2" stroke-linecap="round" />
+          <polygon points="156,153 164,153 160,158" fill="#FB7185" />
+          <path d="M152 162 Q156 167 160 161 Q164 167 168 162" fill="none" stroke="#78350F" stroke-width="2.2" stroke-linecap="round" />
+        `;
+      } else if (base === 'base_bear') {
+        skinColor = '#D99B66';
+        earBackLayer = `
+          <circle cx="114" cy="98" r="18" fill="#D99B66" stroke="#92400E" stroke-width="2.5" />
+          <circle cx="114" cy="98" r="10" fill="#FDE68A" />
+          <circle cx="206" cy="98" r="18" fill="#D99B66" stroke="#92400E" stroke-width="2.5" />
+          <circle cx="206" cy="98" r="10" fill="#FDE68A" />
+        `;
+        faceDetailLayer = `
+          <ellipse cx="160" cy="158" rx="18" ry="13" fill="#FEF3C7" />
+          <ellipse cx="160" cy="153" rx="6" ry="4.5" fill="#451A03" />
+          <path d="M153 162 Q160 168 167 162" fill="none" stroke="#451A03" stroke-width="2.3" stroke-linecap="round" />
+        `;
+      } else if (base === 'base_rabbit') {
+        skinColor = '#FFFFFF';
+        earBackLayer = `
+          <rect x="122" y="42" width="22" height="62" rx="11" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2.5" />
+          <rect x="127" y="50" width="12" height="46" rx="6" fill="#FBCFE8" />
+          <rect x="176" y="42" width="22" height="62" rx="11" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2.5" />
+          <rect x="181" y="50" width="12" height="46" rx="6" fill="#FBCFE8" />
+        `;
+        faceDetailLayer = `
+          <circle cx="160" cy="154" r="3.5" fill="#F472B6" />
+          <path d="M154 161 Q160 166 166 161" fill="none" stroke="#4B5563" stroke-width="2.2" stroke-linecap="round" />
+        `;
+      } else {
+        // 기본 인간 셰프
+        earBackLayer = `
+          <circle cx="107" cy="144" r="10" fill="#FCD5B4" />
+          <circle cx="213" cy="144" r="10" fill="#FCD5B4" />
+        `;
+        faceDetailLayer = `
+          <path d="M152 159 Q160 167 168 159" fill="none" stroke="#78350F" stroke-width="2.5" stroke-linecap="round" />
+        `;
+      }
+
+      // 3. 의상 레이어
+      let outfitLayer = '';
+      if (outfit === 'outfit_apron') {
+        outfitLayer = `
+          <path d="M114 192 Q160 182 206 192 L216 264 L104 264 Z" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" />
+          <path d="M126 196 L194 196 L200 264 L120 264 Z" fill="#FB923C" />
+          <rect x="138" y="224" width="44" height="24" rx="6" fill="#FFEDD5" />
+          <line x1="132" y1="190" x2="132" y2="202" stroke="#EA580C" stroke-width="4" />
+          <line x1="188" y1="190" x2="188" y2="202" stroke="#EA580C" stroke-width="4" />
+        `;
+      } else if (outfit === 'outfit_overalls') {
+        outfitLayer = `
+          <path d="M114 192 Q160 182 206 192 L216 264 L104 264 Z" fill="#FDE047" />
+          <path d="M124 202 L196 202 L202 264 L118 264 Z" fill="#3B82F6" />
+          <rect x="132" y="190" width="10" height="22" fill="#2563EB" />
+          <rect x="178" y="190" width="10" height="22" fill="#2563EB" />
+          <circle cx="137" cy="208" r="3" fill="#FACC15" />
+          <circle cx="183" cy="208" r="3" fill="#FACC15" />
+        `;
+      } else if (outfit === 'outfit_stripe') {
+        outfitLayer = `
+          <path d="M114 192 Q160 182 206 192 L216 264 L104 264 Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2" />
+          <line x1="135" y1="192" x2="132" y2="264" stroke="#94A3B8" stroke-width="2" stroke-dasharray="4 4" />
+          <line x1="185" y1="192" x2="188" y2="264" stroke="#94A3B8" stroke-width="2" stroke-dasharray="4 4" />
+          <polygon points="145,190 175,190 160,206" fill="#EF4444" />
+          <circle cx="152" cy="218" r="3" fill="#334155" />
+          <circle cx="168" cy="218" r="3" fill="#334155" />
+          <circle cx="152" cy="236" r="3" fill="#334155" />
+          <circle cx="168" cy="236" r="3" fill="#334155" />
+        `;
+      } else if (outfit === 'outfit_space') {
+        outfitLayer = `
+          <path d="M112 192 Q160 180 208 192 L218 264 L102 264 Z" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2.5" />
+          <rect x="138" y="212" width="44" height="30" rx="8" fill="#E2E8F0" stroke="#64748B" stroke-width="1.5" />
+          <circle cx="150" cy="227" r="4" fill="#EF4444" />
+          <circle cx="162" cy="227" r="4" fill="#3B82F6" />
+          <circle cx="174" cy="227" r="4" fill="#10B981" />
+          <ellipse cx="160" cy="193" rx="34" ry="7" fill="none" stroke="#F97316" stroke-width="4" />
+        `;
+      } else if (outfit === 'outfit_michelin') {
+        outfitLayer = `
+          <path d="M112 192 Q160 180 208 192 L218 264 L102 264 Z" fill="#1E293B" />
+          <path d="M142 190 L160 220 L178 190 Z" fill="#FFFFFF" />
+          <polygon points="154,193 166,193 160,204" fill="#DC2626" />
+          <ellipse cx="116" cy="196" rx="12" ry="6" fill="#FACC15" />
+          <ellipse cx="204" cy="196" rx="12" ry="6" fill="#FACC15" />
+          <circle cx="182" cy="222" r="8" fill="#FACC15" stroke="#FEF08A" stroke-width="2" />
+          <text x="177" y="226" font-size="10">★</text>
+        `;
+      }
+
+      // 4. 모자 / 헤어 레이어
+      let hatLayer = '';
+      if (hat === 'hat_hair') {
+        hatLayer = `
+          <path d="M108 130 Q112 86 160 86 Q208 86 212 130 Q192 108 175 122 Q160 104 145 122 Q128 108 108 130 Z" fill="#5C3A21" />
+        `;
+      } else if (hat === 'hat_sprout') {
+        hatLayer = `
+          <path d="M160 88 L160 66" stroke="#16A34A" stroke-width="4" stroke-linecap="round" />
+          <ellipse cx="148" cy="64" rx="12" ry="6" transform="rotate(-25 148 64)" fill="#4ADE80" />
+          <ellipse cx="172" cy="64" rx="12" ry="6" transform="rotate(25 172 64)" fill="#22C55E" />
+        `;
+      } else if (hat === 'hat_chef') {
+        hatLayer = `
+          <circle cx="136" cy="66" r="20" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" />
+          <circle cx="160" cy="58" r="24" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" />
+          <circle cx="184" cy="66" r="20" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" />
+          <rect x="126" y="76" width="68" height="18" rx="6" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" />
+          <rect x="127" y="86" width="66" height="5" fill="#EF4444" />
+        `;
+      } else if (hat === 'hat_catband') {
+        hatLayer = `
+          <path d="M114 114 Q160 76 206 114" fill="none" stroke="#1F2937" stroke-width="6" stroke-linecap="round" />
+          <polygon points="116,104 122,74 144,94" fill="#1F2937" />
+          <polygon points="121,99 124,81 138,94" fill="#F472B6" />
+          <polygon points="204,104 198,74 176,94" fill="#1F2937" />
+          <polygon points="199,99 196,81 182,94" fill="#F472B6" />
+          <circle cx="160" cy="91" r="6" fill="#FACC15" />
+        `;
+      } else if (hat === 'hat_crown') {
+        hatLayer = `
+          <polygon points="128,92 134,62 148,78 160,54 172,78 186,62 192,92" fill="#FACC15" stroke="#CA8A04" stroke-width="2" stroke-linejoin="round" />
+          <circle cx="160" cy="82" r="4" fill="#EF4444" />
+          <circle cx="142" cy="84" r="3" fill="#3B82F6" />
+          <circle cx="178" cy="84" r="3" fill="#10B981" />
+        `;
+      } else if (hat === 'hat_wizard') {
+        hatLayer = `
+          <ellipse cx="160" cy="92" rx="58" ry="12" fill="#312E81" />
+          <polygon points="122,92 164,28 198,92" fill="#3730A3" />
+          <path d="M133 82 L187 82" stroke="#FACC15" stroke-width="5" />
+          <text x="153" y="64" font-size="14" fill="#FDE047">★</text>
+        `;
+      }
+
+      // 5. 손 소품 레이어 (오른손 위치 x=224, y=216 부근)
+      let handLayer = '';
+      if (hand === 'hand_spatula') {
+        handLayer = `
+          <g transform="translate(226, 175) rotate(16)">
+            <rect x="8" y="34" width="8" height="44" rx="4" fill="#B45309" />
+            <rect x="0" y="0" width="24" height="36" rx="8" fill="#D97706" />
+            <line x1="7" y1="8" x2="7" y2="28" stroke="#92400E" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="17" y1="8" x2="17" y2="28" stroke="#92400E" stroke-width="2.5" stroke-linecap="round" />
+          </g>
+        `;
+      } else if (hand === 'hand_whisk') {
+        handLayer = `
+          <g transform="translate(226, 172) rotate(18)">
+            <rect x="9" y="40" width="8" height="38" rx="4" fill="#64748B" />
+            <ellipse cx="13" cy="22" rx="11" ry="20" fill="none" stroke="#94A3B8" stroke-width="2.5" />
+            <ellipse cx="13" cy="22" rx="5" ry="20" fill="none" stroke="#CBD5E1" stroke-width="2" />
+          </g>
+        `;
+      } else if (hand === 'hand_greenonion') {
+        handLayer = `
+          <g transform="translate(232, 138) rotate(22)">
+            <!-- 대파 검! -->
+            <rect x="6" y="66" width="12" height="34" rx="5" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5" />
+            <path d="M6 68 L2 14 L10 32 L14 6 L18 32 L24 16 L18 68 Z" fill="#22C55E" />
+            <circle cx="24" cy="24" r="3" fill="#FDE047" class="animate-twinkle" />
+          </g>
+        `;
+      } else if (hand === 'hand_goldenpan') {
+        handLayer = `
+          <g transform="translate(216, 176) rotate(12)">
+            <rect x="14" y="42" width="8" height="36" rx="4" fill="#B45309" />
+            <circle cx="18" cy="24" r="22" fill="#FACC15" stroke="#CA8A04" stroke-width="3" />
+            <circle cx="18" cy="24" r="16" fill="#FEF08A" />
+            <!-- 계란후라이 -->
+            <circle cx="18" cy="24" r="9" fill="#FFFFFF" />
+            <circle cx="19" cy="23" r="4.5" fill="#F97316" />
+          </g>
+        `;
+      } else if (hand === 'hand_trophy') {
+        handLayer = `
+          <g transform="translate(218, 174) rotate(10)">
+            <rect x="8" y="54" width="24" height="8" rx="2" fill="#78350F" />
+            <rect x="16" y="40" width="8" height="14" fill="#EAB308" />
+            <path d="M6 12 L34 12 L29 40 L11 40 Z" fill="#FACC15" stroke="#CA8A04" stroke-width="2" />
+            <text x="14" y="30" font-size="13" fill="#FFFFFF">★</text>
+          </g>
+        `;
+      }
+
+      // 전체 SVG 조립
+      stage.innerHTML = `
+        <svg viewBox="0 0 320 320" class="w-full h-full select-none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 1. 배경 -->
+          ${bgLayer}
+
+          <!-- 2. 움직이는 셰프 캐릭터 본체 -->
+          <g class="animate-chef">
+            <!-- 뒷 귀/꼬리 -->
+            ${earBackLayer}
+
+            <!-- 왼팔 & 오른팔 -->
+            <ellipse cx="104" cy="222" rx="12" ry="20" transform="rotate(20 104 222)" fill="${skinColor}" />
+            <ellipse cx="218" cy="220" rx="12" ry="20" transform="rotate(-24 218 220)" fill="${skinColor}" />
+
+            <!-- 의상 -->
+            ${outfitLayer}
+
+            <!-- 머리 -->
+            <ellipse cx="160" cy="140" rx="52" ry="48" fill="${skinColor}" stroke="#E5C19C" stroke-width="1.5" />
+
+            <!-- 모자 / 헤어 -->
+            ${hatLayer}
+
+            <!-- 반짝이는 눈 & 발그레 볼터치 -->
+            <circle cx="140" cy="141" r="6.5" fill="#2D241E" />
+            <circle cx="138" cy="139" r="2.2" fill="#FFFFFF" />
+            <circle cx="180" cy="141" r="6.5" fill="#2D241E" />
+            <circle cx="178" cy="139" r="2.2" fill="#FFFFFF" />
+
+            <ellipse cx="127" cy="151" rx="7.5" ry="4.5" fill="#FDA4AF" opacity="0.65" />
+            <ellipse cx="193" cy="151" rx="7.5" ry="4.5" fill="#FDA4AF" opacity="0.65" />
+
+            <!-- 표정/코/수염 -->
+            ${faceDetailLayer}
+
+            <!-- 손 소품 -->
+            ${handLayer}
+          </g>
+        </svg>
+      `;
+    }
+
+    /*************************************************************************
+     * 8. 초기 실행 (Bootstrap)
+     *************************************************************************/
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      initQuickChips();
+      document.getElementById('ing-expiry').value = getDateOffsetStr(3);
+      refreshAllUI(false);
+    });
+
+    // ESC 키로 모달 닫기 지원
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeCookingModal();
+        closeConfirmModal();
+      }
+    });
+  </script>
+</body>
+</html>
